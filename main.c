@@ -8,8 +8,8 @@
 
 #define DEBUG 0
 
-#define MAX_X 24
-#define MAX_Y 24
+#define MAX_X 25
+#define MAX_Y 25
 #define MAX_BADDIES (MAX_X * MAX_Y / 2)
 #define MAX_TRAPS (MAX_X * MAX_Y / 2)
 #define LEVEL_ADD_BADDIES 2
@@ -92,32 +92,30 @@ void board_draw(void) {
 	if (!DEBUG) printf("\033[H");    // home
 
 	// print top border
-	printf("\n");
-	printf("+");
+	printf("+-");
 	for (y = 0; y < MAX_Y; y++) {
-		printf("-");
+		printf("--");
 	}
 	printf("+\n");
 
 	// print board
 	for (y = 0; y < MAX_Y; y++) {
-		printf("|");
+		printf("| ");
 		for (x = 0; x < MAX_X; x++) {
-			printf("%c", board[x][y]);
+			printf("%c ", board[x][y]);
 		}
 		printf("|\n");
 	}
 
 	// print bottom border
-	printf("+");
+	printf("+-");
 	for (y = 0; y < MAX_Y; y++) {
-		printf("-");
+		printf("--");
 	}
 	printf("+\n");
-	printf("       level: %d\n", level);
-	printf("u k i  left: %d\n", baddies_count());
+	printf("u k i  level: %d  left: %d\n", level, baddies_count());
 	printf("h   l  q=quit\n");
-	printf("n j m  t=teleport [%d]\n", num_teleports);
+	printf("n j m  t=teleport [%d]  ", num_teleports);
 	if (player.dead) printf("***** DEAD *****\n");
 	if (victory()) printf("***** YOU WON *****\n");
 }
