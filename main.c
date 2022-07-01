@@ -14,6 +14,9 @@
 #define MAX_TRAPS (MAX_X * MAX_Y / 2)
 #define LEVEL_ADD_BADDIES 2
 #define LEVEL_ADD_TRAPS 2
+#define TYPE_PLAYER 1
+#define TYPE_BADDIE 2
+#define TYPE_TRAP 3
 
 typedef struct {
 	int x;
@@ -22,8 +25,7 @@ typedef struct {
 
 typedef struct {
 	char view;
-	unsigned char baddie;
-	unsigned char trap;
+	unsigned char type;
 	POSITION pos;
 	unsigned char dead;
 } PLAYER;
@@ -35,6 +37,7 @@ PLAYER traps[MAX_TRAPS + (MAX_BADDIES / 2)];
 int num_baddies;
 int num_traps;
 int num_teleports;
+int num_zaps;
 int level;
 
 int getch(void) {
@@ -102,7 +105,10 @@ void board_draw(void) {
 	for (y = 0; y < MAX_Y; y++) {
 		printf("| ");
 		for (x = 0; x < MAX_X; x++) {
-			printf("%c ", board[x][y]);
+			// if (board[x][y] == player.view) printf("\033[7m");
+			printf("%c", board[x][y]);
+			// if (board[x][y] == player.view) printf("\033[0m");
+			printf(" ");
 		}
 		printf("|\n");
 	}
@@ -113,9 +119,9 @@ void board_draw(void) {
 		printf("--");
 	}
 	printf("+\n");
-	printf("u k i  level: %d  left: %d\n", level, baddies_count());
+	printf("u k i  level: %d  baddies: %d\n", level, baddies_count());
 	printf("h   l  q=quit\n");
-	printf("n j m  t=teleport [%d]  ", num_teleports);
+	printf("n j m  t=teleport [%d] z=zap [%d]", num_teleports, num_zaps);
 	if (player.dead) printf("***** DEAD *****\n");
 	if (victory()) printf("***** YOU WON *****\n");
 }
@@ -167,22 +173,21 @@ unsigned char occupied(int x, int y) {
 	return result;
 }
 
-void players_init(int n_baddies, int n_traps, int n_teleports) {
+void players_init(int n_baddies, int n_traps, int n_teleports, int n_zaps) {
 	int randx, randy;
 
 	// player
 	player.view = '@';
-	player.baddie = 0;
 	player.pos.x = (int)(MAX_X / 2);
 	player.pos.y = (int)(MAX_Y / 2);
+	player.type = TYPE_PLAYER;
 
 	// baddies
 	num_baddies = 0;
 	while (num_baddies < n_baddies) {
 		baddies[num_baddies].dead = 0;
 		baddies[num_baddies].view = 'B';
-		baddies[num_baddies].baddie = 1;
-		baddies[num_baddies].trap = 0;
+		baddies[num_baddies].type = TYPE_BADDIE;
 		randx = rand() % MAX_X; randy = rand() % MAX_Y;
 		while (occupied(randx, randy)) {
 			printf("generating random player positions x=%d, y=%d\r", randx, randy);
@@ -197,8 +202,7 @@ void players_init(int n_baddies, int n_traps, int n_teleports) {
 	num_traps = 0;
 	while(num_traps < n_traps) {
 		traps[num_traps].view = '%';
-		traps[num_traps].baddie = 0;
-		traps[num_traps].trap = 1;
+		traps[num_traps].type = TYPE_TRAP;
 		randx = rand() % MAX_X; randy = rand() % MAX_Y;
 		while (occupied(randx, randy)) {
 			printf("generating random player positions x=%d, y=%d\r", randx, randy);
@@ -211,13 +215,15 @@ void players_init(int n_baddies, int n_traps, int n_teleports) {
 
 	//teleports
 	num_teleports = n_teleports;
+
+	//zaps
+	num_zaps = n_zaps;
 }
 
 void trap_new(int x, int y) {
 	num_traps++;
 	traps[num_traps - 1].view = '%';
-	traps[num_traps - 1].baddie = 0;
-	traps[num_traps - 1].trap = 1;
+	traps[num_traps - 1].type = TYPE_TRAP;
 	traps[num_traps - 1].pos.x = x;
 	traps[num_traps - 1].pos.y = y;
 }
@@ -244,6 +250,20 @@ void player_teleport(void) {
 	}
 	player.pos.x = randx;
 	player.pos.y = randy;
+}
+
+void player_zap(void) {
+	int i;
+
+	for (i = 0; i < num_baddies; i++) {
+		if (!baddies[i].dead) {
+			if (abs(baddies[i].pos.x - player.pos.x) <= 1) {
+				if (abs(baddies[i].pos.y - player.pos.y) <= 1) {
+					baddies[i].dead = 1;
+				}
+			}
+		}
+	}
 }
 
 void baddies_move(void) {
@@ -323,6 +343,7 @@ void collision_detect(void) {
 
 int main(int argc, char**argv) {
 	char input_key = '\0';
+	unsigned char skip_baddies_move = 0;
 
 	// seed the random number generator
 	srand(time(NULL));
@@ -330,11 +351,12 @@ int main(int argc, char**argv) {
 	level = 1;
 	board_clear();
 	board_draw();
-	players_init(3, 4, 2);
+	players_init(3, 4, 2, 2);
 	board_update();
 	board_draw();
 	while (1) {
 		input_key = (char)getch();
+		skip_baddies_move = 0;
 		switch (input_key) {
 			case 'q': return(1); break;
 			case 'h':
@@ -361,12 +383,27 @@ int main(int argc, char**argv) {
 					player_teleport();
 					num_teleports--;
 				}
+				else {
+					skip_baddies_move = 1;
+				}
+				break;
+			case 'z':
+				if (num_zaps > 0) {
+					player_zap();
+					num_zaps--;
+				}
+				else {
+					skip_baddies_move = 1;
+				}
 				break;
 			default:
+				skip_baddies_move = 1;
 				break;
 		}
-		baddies_move();
-		collision_detect();
+		if (!skip_baddies_move) {
+			baddies_move();
+			collision_detect();
+		}
 		board_update();
 		board_draw();
 
@@ -375,7 +412,7 @@ int main(int argc, char**argv) {
 			level++;
 			board_clear();
 			board_draw();
-			players_init(num_baddies + LEVEL_ADD_BADDIES, num_traps + LEVEL_ADD_TRAPS, level);
+			players_init(num_baddies + LEVEL_ADD_BADDIES, num_traps + LEVEL_ADD_TRAPS, level, 2);
 			board_update();
 			board_draw();
 		}
