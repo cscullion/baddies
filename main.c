@@ -228,16 +228,6 @@ void trap_new(int x, int y) {
 	traps[num_traps - 1].pos.y = y;
 }
 
-void player_move(char dir) {
-	switch (dir) {
-		case 'h': if (player.pos.x > 0) player.pos.x--; break;
-		case 'j': if (player.pos.y < MAX_Y - 1) player.pos.y++; break;
-		case 'k': if (player.pos.y > 0) player.pos.y--; break;
-		case 'l': if (player.pos.x < MAX_X - 1) player.pos.x++; break;
-		default: break;
-	}
-}
-
 void player_teleport(void) {
 	int randx, randy;
 
@@ -264,6 +254,42 @@ void player_zap(void) {
 			}
 		}
 	}
+}
+
+unsigned char player_move(char key) {
+	unsigned char handled = 1;
+
+	switch (key) {
+		case ' ': break;  // valid move == stand still
+		case 'h': if (player.pos.x > 0) player.pos.x--; break;
+		case 'j': if (player.pos.y < MAX_Y - 1) player.pos.y++; break;
+		case 'k': if (player.pos.y > 0) player.pos.y--; break;
+		case 'l': if (player.pos.x < MAX_X - 1) player.pos.x++; break;
+		case 'u': handled = player_move('h'); handled = player_move('k'); break;
+		case 'i': handled = player_move('l'); handled = player_move('k'); break;
+		case 'n': handled = player_move('h'); handled = player_move('j'); break;
+		case 'm': handled = player_move('l'); handled = player_move('j'); break;
+		case 't': 
+			if (num_teleports > 0) {
+				player_teleport();
+				num_teleports--;
+			}
+			else {
+				handled = 0;
+			}
+			break;
+		case 'z':
+			if (num_zaps > 0) {
+				player_zap();
+				num_zaps--;
+			}
+			else {
+				handled = 0;
+			}
+			break;
+		default: handled = 0; break;
+	}
+	return(handled);
 }
 
 void baddies_move(void) {
@@ -343,7 +369,7 @@ void collision_detect(void) {
 
 int main(int argc, char**argv) {
 	char input_key = '\0';
-	unsigned char skip_baddies_move = 0;
+	unsigned char move_baddies = 0;
 
 	// seed the random number generator
 	srand(time(NULL));
@@ -356,51 +382,9 @@ int main(int argc, char**argv) {
 	board_draw();
 	while (1) {
 		input_key = (char)getch();
-		skip_baddies_move = 0;
-		switch (input_key) {
-			case 'q': return(1); break;
-			case 'h':
-			case 'j':
-			case 'k':
-			case 'l':
-			case ' ':
-				player_move(input_key);
-				break;
-			case 'u':
-				player_move('h'); player_move('k');
-				break;
-			case 'i':
-				player_move('l'); player_move('k');
-				break;
-			case 'n':
-				player_move('h'); player_move('j');
-				break;
-			case 'm':
-				player_move('l'); player_move('j');
-				break;
-			case 't':
-				if (num_teleports > 0) {
-					player_teleport();
-					num_teleports--;
-				}
-				else {
-					skip_baddies_move = 1;
-				}
-				break;
-			case 'z':
-				if (num_zaps > 0) {
-					player_zap();
-					num_zaps--;
-				}
-				else {
-					skip_baddies_move = 1;
-				}
-				break;
-			default:
-				skip_baddies_move = 1;
-				break;
-		}
-		if (!skip_baddies_move) {
+		if (input_key == 'q') return(1);
+		move_baddies = player_move(input_key);
+		if (move_baddies) {
 			baddies_move();
 			collision_detect();
 		}
