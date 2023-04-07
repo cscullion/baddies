@@ -6,12 +6,10 @@
 #include <assert.h>
 #include <time.h>
 
-#define DEBUG 0
+/*
+#define DEBUG 1 
+*/
 
-#define MAX_X 25
-#define MAX_Y 25
-#define MAX_BADDIES (MAX_X * MAX_Y / 2)
-#define MAX_TRAPS (MAX_X * MAX_Y / 2)
 #define LEVEL_ADD_BADDIES 2
 #define LEVEL_ADD_TRAPS 2
 #define TYPE_PLAYER 1
@@ -30,15 +28,38 @@ typedef struct {
 	unsigned char dead;
 } PLAYER;
 
-char board[MAX_X][MAX_Y];
+char **board;
+PLAYER *baddies;
+PLAYER *traps;
+int MAX_X;
+int MAX_Y;
+int MAX_BADDIES;
+int MAX_TRAPS;
+
 PLAYER player;
-PLAYER baddies[MAX_BADDIES];
-PLAYER traps[MAX_TRAPS + (MAX_BADDIES / 2)];
 int num_baddies;
 int num_traps;
 int num_teleports;
 int num_zaps;
 int level;
+
+void allocate_arrays(int x, int y) {
+
+	int i = 0;
+
+	MAX_X = x;
+	MAX_Y = y;
+	MAX_BADDIES = (MAX_X * MAX_Y / 2);
+	MAX_TRAPS = (MAX_X * MAX_Y / 2);
+
+	board = malloc(MAX_X * sizeof(*board));
+	for (i = 0; i < MAX_X; i++) {
+		board[i] = malloc(MAX_Y * sizeof(board[0]));
+	}
+
+	baddies = malloc(MAX_BADDIES * sizeof(PLAYER));
+	traps = malloc(MAX_TRAPS * sizeof(PLAYER));
+}
 
 int getch(void) {
 	int c=0;
@@ -60,7 +81,12 @@ int getch(void) {
 }
 
 void board_clear(void) {
-	memset(board, '.', sizeof(board));
+	for (int y = 0; y < MAX_Y; y++) {
+		for (int x = 0; x < MAX_X; x++) {
+			board[x][y] = '.';
+		}
+		printf("\n");
+	}
 }
 
 unsigned char victory(void) {
@@ -91,12 +117,14 @@ void board_draw(void) {
 	int x, y;
 
 	// clear screen and home cursor
-	if (!DEBUG) printf("\033[2J");   // clear
-	if (!DEBUG) printf("\033[H");    // home
+#ifndef DEBUG
+	printf("\033[2J");   // clear
+	printf("\033[H");    // home
+#endif
 
 	// print top border
 	printf("+-");
-	for (y = 0; y < MAX_Y; y++) {
+	for (x = 0; x < MAX_X; x++) {
 		printf("--");
 	}
 	printf("+\n");
@@ -115,7 +143,7 @@ void board_draw(void) {
 
 	// print bottom border
 	printf("+-");
-	for (y = 0; y < MAX_Y; y++) {
+	for (x = 0; x < MAX_X; x++) {
 		printf("--");
 	}
 	printf("+\n");
@@ -370,9 +398,21 @@ void collision_detect(void) {
 int main(int argc, char**argv) {
 	char input_key = '\0';
 	unsigned char move_baddies = 0;
+	int cx = 25;
+	int cy = 25;
+
+	if (argc == 3) {	// get board dimensions from command line
+		cx = atoi(argv[1]);
+		cy = atoi(argv[2]);
+	} else if (argc == 2) {
+		printf("usage: baddies [x-size y-size]\n");
+		return(1);
+	}
 
 	// seed the random number generator
 	srand(time(NULL));
+
+	allocate_arrays(cx, cy);
 
 	level = 1;
 	board_clear();
