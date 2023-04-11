@@ -61,6 +61,19 @@ void allocate_arrays(int x, int y) {
 	traps = malloc(MAX_TRAPS * sizeof(PLAYER));
 }
 
+void deallocate_arrays(void) {
+
+	int i = 0;
+
+	for (i = 0; i < MAX_X; i++) {
+		free(board[i]);
+	}
+	free(board);
+
+	free(baddies);
+	free(traps);
+}
+
 int getch(void) {
 	int c=0;
 
@@ -422,7 +435,10 @@ int main(int argc, char**argv) {
 	board_draw();
 	while (1) {
 		input_key = (char)getch();
-		if (input_key == 'q') return(1);
+		if (input_key == 'q') {
+			deallocate_arrays();
+			return(1);
+		}
 		move_baddies = player_move(input_key);
 		if (move_baddies) {
 			baddies_move();
